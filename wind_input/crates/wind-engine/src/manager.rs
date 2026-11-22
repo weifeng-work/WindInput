@@ -3438,6 +3438,21 @@ impl EngineManager {
             .unwrap_or(false)
     }
 
+    /// 活跃**码表**方案是否开着「英文候选」（`[schema.codetable.english_merge] enable`）。
+    ///
+    /// 供协调器的英文自动造词判据使用：码表方案下字母串既可能是英文也可能是五笔码，
+    /// 「开着英文候选」是「这一串可能被当英文处理」的必要前提，但**不充分**——还要看它
+    /// 有没有解出中文候选（见 `Coordinator::english_learn_target`）。
+    ///
+    /// 非码表方案恒 `false`：拼音侧有自己的 `english_merge`，语义不同，不共用本判据。
+    pub fn codetable_english_merge_enabled(&self) -> bool {
+        self.is_codetable()
+            && self
+                .codetable_settings_of(&self.active_schema_id())
+                .english_merge
+                .enable
+    }
+
     /// 活跃引擎的码元字符集（`[engine.codetable].input_chars` / `.leading_chars`）。
     ///
     /// 未加载引擎、或引擎无「码元」概念（拼音等，`Engine::input_chars` 返回 `None`）时，

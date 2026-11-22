@@ -23,6 +23,8 @@
 
 use crate::coordinator::{Coordinator, LEARN_ADD_WEIGHT};
 use tracing::debug;
+use wind_candidate::CandidateSource;
+use wind_engine::manager::ENGLISH_SCHEMA;
 
 /// 可造词的长度区间（字符）。下界挡掉单字母；上界与英文方案的最大码长同量级，
 /// 再长多半是误粘进来的整段。
@@ -111,6 +113,39 @@ impl Coordinator {
         if let Some(schema) = self.overlay_engine_schema(state) {
             self.learn_english_raw(&schema, text);
         }
+    }
+
+    /// 本次上屏的英文原文该学进哪个桶；`None` = 这一笔不学。
+    ///
+    /// 两条来路，判据不同：
+    ///
+    /// * **英文方案** → 活跃方案自己的桶（第三方英文类方案各落各的），与原来一致。
+    /// * **码表方案**（五笔等）→ 共享英文桶 [`ENGLISH_SCHEMA`]。
+    ///   这条是本地分支新增的：上游只在 `active_is_english()` 时才学，五笔方案下打英文
+    ///   永远不会被记住。但码表方案下的字母串**既可能是英文也可能是五笔码**，不能见字母
+    ///   就学——判据是「这一串没解出任何中文候选」：解出了中文说明用户在打中文，此刻上屏
+    ///   原码是「这些候选都不要」，不是「我要这个词」。`workbuddy` 这类超长串解不出中文，
+    ///   正好落进来；`rrqn` 这种有效五笔码有中文候选，不会被误收成英文词。
+    ///
+    /// 前置条件 `codetable_english_merge_enabled()`：用户没开「英文候选」时，码表方案里
+    /// 本就没有英文这条线，不该往英文词库里塞东西。
+    pub(crate) fn english_learn_target(&self, state: &crate::coordinator::State) -> Option<String> {
+        if self.engine_mgr.active_is_english() {
+            return Some(self.engine_mgr.active_schema_id());
+        }
+        if !self.engine_mgr.codetable_english_merge_enabled() {
+            return None;
+        }
+        let has_cjk = state.candidates.iter().any(|c| {
+            matches!(
+                c.source,
+                CandidateSource::CodeTable | CandidateSource::Phrase
+            )
+        });
+        if has_cjk {
+            return None;
+        }
+        Some(ENGLISH_SCHEMA.to_string())
     }
 
     /// `schema` 是不是英文类方案的数据归属（自动造词的晋升阈值 / 淘汰上限据此取英文那份）。
