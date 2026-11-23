@@ -1,3 +1,7 @@
+> **⚠️ 非官方分支**
+> 本仓库是「清风输入法 (WindInput)」的非官方分支，**与原项目及其作者无关**。
+> 改动说明见 [README.fork.md](README.fork.md)；上游项目：<https://github.com/huanfeng/WindInput>
+
 <p align="center">
   <img src="pic/logo.png" alt="清风输入法" width="128">
 </p>
