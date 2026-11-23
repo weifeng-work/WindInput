@@ -84,6 +84,11 @@ jobs:
         with:
           repository: huanfeng/wind-installer
           path: wind-installer
+          # ⚠️ 本地分支改动：上游 main 在 00425c92（2026-11-22）之后**二进制目标编不过**——
+          # 那个提交把 `path_conflict` 只声明进 lib.rs，main.rs 没加 `mod path_conflict`，
+          # 而 `src/ui/install_wizard.rs` 里写的是 `crate::path_conflict`，编 bin 时 E0433。
+          # 锁到最后一个可编译的提交（2026-11-15），等上游修好再解锁。
+          ref: 0250e9d78dbb8b6c31f54e4fe6f506d3a1d94b73
       - name: 检出 wind-portable
         uses: actions/checkout@v7
         with:
