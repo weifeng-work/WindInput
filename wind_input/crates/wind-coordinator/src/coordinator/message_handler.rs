@@ -2662,7 +2662,14 @@ impl MessageHandler for Coordinator {
                     // 走不到这里——那一态必须早于标点流水线返回，见该处注释。
                     let discard_empty_code =
                         self.punct_empty_code_policy(&state) == PunctEmptyCodePolicy::Clear;
-                    self.learn_on_main_punct_top_commit(&mut state);
+                    // 码表方案下英文候选（`english_merge` 的前缀补全）不参与顶屏：打 `work`
+                    // 时用户要的是 `work` 本身，`workbuddy` 只是补全建议。此时改走下面
+                    // 「上屏原码」那条分支，得到 `work.`。判据见 `punct_top_skips_english`。
+                    // 顺带也要跳过顶屏的造词记账——那条候选根本没被选，不该记。
+                    let skip_english_top = self.punct_top_skips_english(&state);
+                    if !skip_english_top {
+                        self.learn_on_main_punct_top_commit(&mut state);
+                    }
                     let committed = self.take_committed(&mut state);
                     let mut out = if discard_empty_code {
                         String::new()
@@ -2695,7 +2702,7 @@ impl MessageHandler for Coordinator {
                     //
                     // ⚠️ 注意这一段**不受上面 `has_input` 守卫**：那个只挡住了「顶码上屏开关」
                     // 那条分支，本段是标点的通用出口，联想态照样走得到。判据必须自己带。
-                    if !state.candidates.is_empty() && !state.assoc_active() {
+                    if !state.candidates.is_empty() && !state.assoc_active() && !skip_english_top {
                         let (start, _) = self.page_range(&state);
                         let idx = (start + state.selected_index).min(state.candidates.len() - 1);
                         let cand = state.candidates[idx].clone();

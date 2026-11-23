@@ -5281,6 +5281,28 @@ impl Coordinator {
         Some((idx, state.candidates[idx].clone()))
     }
 
+    /// 标点顶屏是否该**跳过**当前高亮候选，改走上屏原码。
+    ///
+    /// 只对**码表方案**成立。那里的英文候选来自 `english_merge` 的前缀补全——打 `work`
+    /// 出 `workbuddy` / `workbench`，它和中文同码候选性质不同：中文那条是「你打的码解得开
+    /// 这个字」，英文这条只是「以你打的字母开头的词」。用户打 `work` 想要的是 `work` 本身，
+    /// 补全词是建议不是选择。顶屏会把没选的词推上去（`work` + 句号 → `workbuddy.`），
+    /// 故此时改走「上屏原码」分支，得到 `work.`。
+    ///
+    /// 拼音方案不受影响：那边英文候选排在中文之后，只有用户明确高亮才会被顶，且语义上
+    /// 确实是他选的。
+    ///
+    /// 联想态返回 `false`——本来就不顶屏，交给调用方的既有判据兜住。
+    pub(crate) fn punct_top_skips_english(&self, state: &State) -> bool {
+        if !self.engine_mgr.is_codetable() || state.candidates.is_empty() || state.assoc_active() {
+            return false;
+        }
+        let idx = self
+            .highlighted_global_index(state)
+            .min(state.candidates.len() - 1);
+        state.candidates[idx].source == CandidateSource::English
+    }
+
     /// 顶屏类出口的造词与 6b：顶屏即「选高亮那条」，与各路选词出口的整体上屏同口径——
     /// 把被顶的候选并进已转换段（码取 `cand_code`，回退码是整个 `buf`），再走
     /// `learn_phrase_on_commit_in` 与 `bump_selected_temp_word`。
